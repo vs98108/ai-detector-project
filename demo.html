@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AI Detector Demo</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 40px;
+      }
+      .controls {
+        margin-bottom: 1rem;
+      }
+      button {
+        margin-right: 1rem;
+        padding: 0.5rem 1rem;
+      }
+      .aid-highlight {
+        background: rgba(255, 235, 59, 0.5);
+        outline: 1px solid #f5c400;
+        border-radius: 2px;
+        padding: 0 2px;
+      }
+      .aid-box {
+        position: absolute;
+        border: 2px solid #ff4081;
+        box-shadow: 0 0 10px rgba(255, 64, 129, 0.6);
+        color: #fff;
+        background: rgba(255, 64, 129, 0.3);
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 9999;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 2px 4px;
+      }
+      #overlay-root {
+        position: relative;
+      }
+      .content {
+        max-width: 800px;
+        line-height: 1.4;
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AI Detector Demo</h1>
+    <p>
+      This page demonstrates the AI detection logic used by the Chrome extension.
+      Click the button below to scan the text and images on this page. Probable
+      AI‑generated segments will be highlighted.
+    </p>
+    <div class="controls">
+      <button id="scanBtn">Scan Text & Images</button>
+    </div>
+    <div id="overlay-root">
+      <div class="content">
+        <h2>Sample Text</h2>
+        <p>
+          In recent developments, artificial intelligence has revolutionized
+          numerous industries. Its ability to process vast amounts of data and
+          generate coherent responses, moreover, is both impressive and
+          concerning. While some applaud its efficiency, others question the
+          ethical implications and potential for misuse. Furthermore, the
+          integration of AI into everyday life continues to spark debates among
+          experts, policymakers, and the general public. In conclusion, it is
+          imperative to approach these advancements with caution, weighing both
+          the benefits and the risks.
+        </p>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla
+          volutpat, dolor vitae semper consequat, risus libero consectetur
+          tellus, sit amet imperdiet lacus massa sed lorem. Integer sit amet
+          aliquet metus. In fermentum quam ac odio finibus, at varius elit
+          laoreet. Suspendisse potenti. Pellentesque habitant morbi tristique
+          senectus et netus et malesuada fames ac turpis egestas.
+        </p>
+        <h2>Sample Images</h2>
+        <img src="ai-detector-ext/icons/128.png" alt="Icon 1" style="width: 200px; height: 200px;" />
+        <img src="ai-detector-ext/icons/48.png" alt="Icon 2" style="width: 96px; height: 96px;" />
+      </div>
+    </div>
+    <script>
+      function walkTextNodes(node, cb) {
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
+        let n;
+        while ((n = walker.nextNode())) cb(n);
+      }
+      function textScore(str) {
+        const s = str.replace(/\s+/g, " ").trim();
+        if (s.length < 80) return 0;
+        const sentences = s.split(/[.!?]\s/).length;
+        const words = s.split(/\s/);
+        const uniq = new Set(words.map(w => w.toLowerCase())).size;
+        const ttr = uniq / words.length;
+        const avgLen = s.length / Math.max(1, sentences);
+        let score = 0;
+        if (ttr < 0.45) score += 0.4;
+        if (avgLen > 160) score += 0.3;
+        if (/[;:—]{2,}/.test(s)) score += 0.2;
+        if (/\bmoreover\b|\bfurthermore\b|\bin conclusion\b/i.test(s)) score += 0.2;
+        return Math.min(1, score);
+      }
+      function highlightText(node, score) {
+        const span = document.createElement('span');
+        span.className = 'aid-highlight';
+        span.title = `AI‑likely: ${((score * 100) | 0)}%`;
+        span.textContent = node.textContent;
+        node.parentNode.replaceChild(span, node);
+      }
+      function detectText() {
+        // Lower the threshold for the demo so you can see highlights more easily
+        walkTextNodes(document.querySelector('.content'), n => {
+          if (n.parentElement.closest('.aid-highlight')) return;
+          const score = textScore(n.textContent);
+          if (score >= 0.1) highlightText(n, score);
+        });
+      }
+      function imageScore(canvas) {
+        const ctx = canvas.getContext('2d');
+        const { width, height } = canvas;
+        const img = ctx.getImageData(0, 0, width, height).data;
+        let varSum = 0;
+        const step = 16;
+        for (let y = 0; y < height; y += step) {
+          for (let x = 0; x < width; x += step) {
+            const i = (y * width + x) * 4;
+            const l = 0.299 * img[i] + 0.587 * img[i + 1] + 0.114 * img[i + 2];
+            const j = ((Math.min(y + step, height - 1)) * width + Math.min(x + step, width - 1)) * 4;
+            const l2 = 0.299 * img[j] + 0.587 * img[j + 1] + 0.114 * img[j + 2];
+            varSum += Math.abs(l - l2);
+          }
+        }
+        const norm = varSum / ((width / step) * (height / step));
+        return Math.max(0, Math.min(1, 0.8 - norm / 35));
+      }
+      function drawBox(el, label) {
+        const rect = el.getBoundingClientRect();
+        const box = document.createElement('div');
+        box.className = 'aid-box';
+        box.style.left = `${window.scrollX + rect.left}px`;
+        box.style.top = `${window.scrollY + rect.top}px`;
+        box.style.width = `${rect.width}px`;
+        box.style.height = `${rect.height}px`;
+        box.textContent = label;
+        document.body.appendChild(box);
+        setTimeout(() => box.remove(), 8000);
+      }
+      function detectImages() {
+        const imgs = document.querySelectorAll('.content img');
+        imgs.forEach(img => {
+          try {
+            const canvas = document.createElement('canvas');
+            const w = Math.min(512, img.naturalWidth || img.width);
+            const h = Math.min(512, img.naturalHeight || img.height);
+            if (!w || !h) return;
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const s = imageScore(canvas);
+            // Lower threshold for demo
+            if (s >= 0.1) {
+              drawBox(img, `AI‑likely ${(s * 100) | 0}%`);
+            }
+          } catch (err) {
+            // skip
+          }
+        });
+      }
+      document.getElementById('scanBtn').addEventListener('click', () => {
+        detectText();
+        detectImages();
+      });
+    </script>
+  </body>
+</html>
