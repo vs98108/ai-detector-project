@@ -1,0 +1,22 @@
+/* Styles for AI Detector overlays */
+.aid-highlight {
+  background: rgba(255, 235, 59, 0.5);
+  outline: 1px solid #f5c400;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.aid-box {
+  position: absolute;
+  border: 2px solid #ff4081;
+  box-shadow: 0 0 10px rgba(255, 64, 129, 0.6);
+  color: #fff;
+  background: rgba(255, 64, 129, 0.3);
+  font: 12px system-ui;
+  pointer-events: none;
+  z-index: 2147483647;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 2px 4px;
+}
