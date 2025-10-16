@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font: 13px system-ui;
+        min-width: 280px;
+        padding: 12px;
+      }
+      button,
+      input {
+        width: 100%;
+        margin: 6px 0;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+      .row > * {
+        flex: 1;
+      }
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>AI Detector</h3>
+
+    <div id="auth">
+      <input id="email" placeholder="email" />
+      <input id="pass" type="password" placeholder="password" />
+      <div class="row">
+        <button id="signup">Sign up</button>
+        <button id="login">Login</button>
+      </div>
+      <div class="muted" id="authStatus"></div>
+    </div>
+
+    <hr />
+
+    <button id="scanPage">Scan Text & Images</button>
+    <button id="startCapture">Start Tab Capture (video+audio)</button>
+    <button id="stopCapture">Stop Capture</button>
+
+    <hr />
+    <div class="row">
+      <button id="likeBtn">👍 Like</button>
+      <button id="dislikeBtn">👎 Dislike</button>
+    </div>
+    <textarea id="feedback" rows="3" placeholder="Optional feedback..."></textarea>
+    <button id="submitFeedback">Submit Feedback</button>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
